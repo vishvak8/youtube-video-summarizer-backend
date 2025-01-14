@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install the Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 transformers==4.31.0 flask==2.2.5 flask-cors==3.0.10 waitress==2.1.2 youtube-transcript-api==0.4.5 requests==2.31.0
 
 # Copy the rest of the application code to the container
 COPY . .
