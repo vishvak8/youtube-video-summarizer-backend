@@ -2,9 +2,9 @@ from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 from transformers import pipeline
 from flask_cors import CORS
+from waitress import serve
 import requests
 import re
-import os
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -97,5 +97,4 @@ def process_video():
         return jsonify({"error": "Failed to save to database"}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=True)
+     serve(app, host="0.0.0.0", port=5000)
