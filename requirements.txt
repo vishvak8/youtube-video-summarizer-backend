@@ -5,4 +5,4 @@ transformers==4.34.0
 requests==2.31.0
 torch==2.0.1
 regex==2023.10.3
-gunicorn==20.1.0
+gunicorn
