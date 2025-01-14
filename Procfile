@@ -1,1 +1,1 @@
-web: gunicorn -w 4 -b 0.0.0.0:5000 fetch_transcript:app
+web: waitress-serve --host=0.0.0.0 --port=$PORT fetch_transcript:app
