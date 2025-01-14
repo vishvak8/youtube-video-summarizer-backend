@@ -1,6 +1,7 @@
-Flask==3.1.0
-Flask-Cors==5.0.0
-waitress==3.0.2
-youtube-transcript-api==0.6.3
-transformers==4.48.0
-requests==2.32.3
+torch
+transformers
+flask
+flask-cors
+waitress
+youtube-transcript-api
+requests
