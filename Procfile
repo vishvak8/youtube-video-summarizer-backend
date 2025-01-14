@@ -1,1 +1,1 @@
-web: gunicorn fetch_transcript:app
+web:  python fetch_transcript:app
