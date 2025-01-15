@@ -1,32 +1,48 @@
 from flask import Flask, request, jsonify
-from youtube_transcript_api import YouTubeTranscriptApi
-from transformers import pipeline
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
+from transformers import pipeline, PipelineException
 from flask_cors import CORS
 from waitress import serve
 import requests
 import re
+import urllib.parse
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # Nhost configuration
 NHOST_GRAPHQL_URL = "https://pcpbxvkqnfgbyqbsydgy.hasura.ap-south-1.nhost.run/v1/graphql"
-NHOST_ADMIN_SECRET = "q)OT'V-#ZA9P2m1%qt&R#dMI+YpE8loh"  # Replace with your Nhost Admin Secret
+NHOST_ADMIN_SECRET = "q)OT'V-#ZA9P2m1%qt&R#dMI+YpE8loh"
 
 # Helper function to clean transcript
 def clean_transcript(transcript):
-    # Remove text in brackets like [music], [applause], etc.
-    cleaned = re.sub(r"\[.*?\]", "", transcript)
-    # Remove excessive spaces or newlines
-    return re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = re.sub(r"\[.*?\]", "", transcript)  # Remove text in brackets like [music]
+    return re.sub(r"\s+", " ", cleaned).strip()  # Remove excessive spaces or newlines
+
+# Function to extract video ID from YouTube URL
+def extract_video_id(video_url):
+    try:
+        query = urllib.parse.urlparse(video_url).query
+        video_id = urllib.parse.parse_qs(query).get("v", [None])[0]
+        if not video_id:
+            raise ValueError("Invalid YouTube URL")
+        return video_id
+    except Exception as e:
+        raise ValueError(f"Error parsing video ID: {str(e)}")
 
 # Function to get transcript
 def get_transcript(video_url):
     try:
-        video_id = video_url.split("v=")[1].split("&")[0]
+        video_id = extract_video_id(video_url)
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         raw_text = " ".join([entry["text"] for entry in transcript])
         return clean_transcript(raw_text)
+    except TranscriptsDisabled:
+        return "Error: Subtitles are disabled for this video."
+    except NoTranscriptFound:
+        return "Error: No transcript found for this video."
+    except VideoUnavailable:
+        return "Error: This video is unavailable."
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -54,6 +70,8 @@ def summarize_text(text):
         chunks = split_into_chunks(text)
         summaries = [summarizer(chunk, max_length=150, min_length=50, do_sample=False)[0]["summary_text"] for chunk in chunks]
         return " ".join(summaries)
+    except PipelineException as e:
+        return f"Error during summarization: {str(e)}"
     except Exception as e:
         return f"Error during summarization: {str(e)}"
 
@@ -67,11 +85,13 @@ def process_video():
 
     # Get transcript
     transcript = get_transcript(youtube_url)
-    if "Error" in transcript:
+    if transcript.startswith("Error"):
         return jsonify({"error": transcript}), 400
 
     # Summarize transcript
     summary = summarize_text(transcript)
+    if summary.startswith("Error"):
+        return jsonify({"error": summary}), 500
 
     # Save to Nhost
     graphql_query = """
@@ -97,4 +117,4 @@ def process_video():
         return jsonify({"error": "Failed to save to database"}), 500
 
 if __name__ == "__main__":
-     serve(app, host="0.0.0.0", port=5000)
+    serve(app, host="0.0.0.0", port=5001)
