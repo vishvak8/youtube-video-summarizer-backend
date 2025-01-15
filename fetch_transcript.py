@@ -68,10 +68,11 @@ def summarize_text(text):
     try:
         summarizer = pipeline("summarization", model="facebook/bart-large-cnn", framework="pt")
         chunks = split_into_chunks(text)
-        summaries = [summarizer(chunk, max_length=150, min_length=50, do_sample=False)[0]["summary_text"] for chunk in chunks]
+        summaries = [
+            summarizer(chunk, max_length=150, min_length=50, do_sample=False)[0]["summary_text"]
+            for chunk in chunks
+        ]
         return " ".join(summaries)
-    except PipelineException as e:
-        return f"Error during summarization: {str(e)}"
     except Exception as e:
         return f"Error during summarization: {str(e)}"
 
