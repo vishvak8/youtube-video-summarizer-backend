@@ -143,5 +143,4 @@ def process_video():
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    logging.info("Starting Flask app...")
-    serve(app, host="0.0.0.0", port=5001)
+    app.run(debug=True, host="0.0.0.0", port=5001)
