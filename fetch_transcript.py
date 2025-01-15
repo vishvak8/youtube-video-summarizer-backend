@@ -6,6 +6,7 @@ from waitress import serve
 import requests
 import re
 import urllib.parse
+import logging
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -13,6 +14,9 @@ CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 # Nhost configuration
 NHOST_GRAPHQL_URL = "https://pcpbxvkqnfgbyqbsydgy.hasura.ap-south-1.nhost.run/v1/graphql"
 NHOST_ADMIN_SECRET = "q)OT'V-#ZA9P2m1%qt&R#dMI+YpE8loh"
+
+# Logging configuration
+logging.basicConfig(level=logging.INFO)
 
 # Helper function to clean transcript
 def clean_transcript(transcript):
@@ -28,7 +32,8 @@ def extract_video_id(video_url):
             raise ValueError("Invalid YouTube URL")
         return video_id
     except Exception as e:
-        raise ValueError(f"Error parsing video ID: {str(e)}")
+        logging.error(f"Error parsing video ID: {e}")
+        raise ValueError("Invalid YouTube URL format.")
 
 # Function to get transcript
 def get_transcript(video_url):
@@ -38,12 +43,16 @@ def get_transcript(video_url):
         raw_text = " ".join([entry["text"] for entry in transcript])
         return clean_transcript(raw_text)
     except TranscriptsDisabled:
+        logging.error("Subtitles are disabled for this video.")
         return "Error: Subtitles are disabled for this video."
     except NoTranscriptFound:
+        logging.error("No transcript found for this video.")
         return "Error: No transcript found for this video."
     except VideoUnavailable:
+        logging.error("This video is unavailable.")
         return "Error: This video is unavailable."
     except Exception as e:
+        logging.error(f"Unexpected error: {e}")
         return f"Error: {str(e)}"
 
 # Function to split text into chunks for summarization
@@ -74,49 +83,65 @@ def summarize_text(text):
         ]
         return " ".join(summaries)
     except Exception as e:
+        logging.error(f"Error during summarization: {e}")
         return f"Error during summarization: {str(e)}"
 
 # Endpoint to process video
 @app.route("/process", methods=["POST"])
 def process_video():
-    data = request.json
-    youtube_url = data.get("youtube_url")
-    if not youtube_url:
-        return jsonify({"error": "YouTube URL is required"}), 400
+    try:
+        data = request.json
+        if not data or "youtube_url" not in data:
+            logging.error("YouTube URL is required.")
+            return jsonify({"error": "YouTube URL is required"}), 400
 
-    # Get transcript
-    transcript = get_transcript(youtube_url)
-    if transcript.startswith("Error"):
-        return jsonify({"error": transcript}), 400
+        youtube_url = data["youtube_url"]
+        logging.info(f"Processing YouTube URL: {youtube_url}")
 
-    # Summarize transcript
-    summary = summarize_text(transcript)
-    if summary.startswith("Error"):
-        return jsonify({"error": summary}), 500
+        # Get transcript
+        transcript = get_transcript(youtube_url)
+        if transcript.startswith("Error"):
+            return jsonify({"error": transcript}), 400
 
-    # Save to Nhost
-    graphql_query = """
-    mutation InsertSummary($youtube_url: String!, $summary: String!) {
-        insert_video_summaries(objects: {youtube_url: $youtube_url, summary: $summary}) {
-            affected_rows
+        # Summarize transcript
+        summary = summarize_text(transcript)
+        if summary.startswith("Error"):
+            return jsonify({"error": summary}), 500
+
+        # Save to Nhost
+        graphql_query = """
+        mutation InsertSummary($youtube_url: String!, $summary: String!) {
+            insert_video_summaries(objects: {youtube_url: $youtube_url, summary: $summary}) {
+                affected_rows
+            }
         }
-    }
-    """
-    headers = {
-        "Content-Type": "application/json",
-        "x-hasura-admin-secret": NHOST_ADMIN_SECRET
-    }
-    variables = {
-        "youtube_url": youtube_url,
-        "summary": summary
-    }
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "x-hasura-admin-secret": NHOST_ADMIN_SECRET
+        }
+        variables = {
+            "youtube_url": youtube_url,
+            "summary": summary
+        }
 
-    response = requests.post(NHOST_GRAPHQL_URL, json={"query": graphql_query, "variables": variables}, headers=headers)
-    if response.status_code == 200:
-        return jsonify({"message": "Processed successfully!", "summary": summary}), 200
-    else:
-        return jsonify({"error": "Failed to save to database"}), 500
+        response = requests.post(
+            NHOST_GRAPHQL_URL,
+            json={"query": graphql_query, "variables": variables},
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            logging.info("Summary saved to database successfully.")
+            return jsonify({"message": "Processed successfully!", "summary": summary}), 200
+        else:
+            logging.error(f"Failed to save to database. Response: {response.text}")
+            return jsonify({"error": "Failed to save to database"}), 500
+
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5001)
-    
+    logging.info("Starting Flask app...")
+    serve(app, host="0.0.0.0", port=5001)
