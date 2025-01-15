@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
-from transformers import pipeline, PipelineException
+from transformers import pipeline
 from flask_cors import CORS
 from waitress import serve
 import requests
