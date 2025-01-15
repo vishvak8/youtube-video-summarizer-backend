@@ -117,4 +117,4 @@ def process_video():
         return jsonify({"error": "Failed to save to database"}), 500
 
 if __name__ == "__main__":
-    serve(app, host="0.0.0.0", port=5001)
+    serve(app, host="0.0.0.0", port=5000)
