@@ -17,6 +17,16 @@ NHOST_ADMIN_SECRET = "q)OT'V-#ZA9P2m1%qt&R#dMI+YpE8loh"
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
 
+# Lazy loading for the summarizer pipeline
+summarizer = None
+
+def get_summarizer():
+    global summarizer
+    if summarizer is None:
+        logging.info("Loading summarizer model...")
+        summarizer = pipeline("summarization", model="facebook/bart-large-cnn", framework="pt")
+    return summarizer
+
 # Helper function to clean transcript
 def clean_transcript(transcript):
     cleaned = re.sub(r"\[.*?\]", "", transcript)  # Remove text in brackets like [music]
@@ -74,7 +84,7 @@ def split_into_chunks(text, max_length=1024):
 # Function to summarize text
 def summarize_text(text):
     try:
-        summarizer = pipeline("summarization", model="facebook/bart-large-cnn", framework="pt")
+        summarizer = get_summarizer()
         chunks = split_into_chunks(text)
         summaries = [
             summarizer(chunk, max_length=150, min_length=50, do_sample=False)[0]["summary_text"]
