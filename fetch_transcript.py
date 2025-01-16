@@ -8,7 +8,7 @@ import urllib.parse
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Nhost configuration
 NHOST_GRAPHQL_URL = "https://pcpbxvkqnfgbyqbsydgy.hasura.ap-south-1.nhost.run/v1/graphql"
