@@ -2,14 +2,13 @@ from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 from transformers import pipeline
 from flask_cors import CORS
-from waitress import serve
 import requests
 import re
 import urllib.parse
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "https://youtube-video-summarizer-frontend.vercel.app"}}, supports_credentials=True)
 
 # Nhost configuration
 NHOST_GRAPHQL_URL = "https://pcpbxvkqnfgbyqbsydgy.hasura.ap-south-1.nhost.run/v1/graphql"
@@ -85,6 +84,11 @@ def summarize_text(text):
     except Exception as e:
         logging.error(f"Error during summarization: {e}")
         return f"Error during summarization: {str(e)}"
+
+# Root route for testing
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Backend is working! Use /process to process YouTube videos."}), 200
 
 # Endpoint to process video
 @app.route("/process", methods=["POST"])
