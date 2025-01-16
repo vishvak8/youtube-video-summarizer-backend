@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "fetch_transcript.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "fetch_transcript.py" }
+  ]
+}
